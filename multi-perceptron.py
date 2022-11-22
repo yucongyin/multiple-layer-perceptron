@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import random
 import math
-import pandas 
+
 
 #setup constants
 C = 0.001
@@ -59,6 +59,7 @@ random.shuffle(indexes)
 Xshuffled = X[indexes]
 Xcshuffled = Xc[indexes]
 
+print(Xcshuffled)
 #initialize weight
 random.seed()
 

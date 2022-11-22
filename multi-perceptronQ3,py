@@ -1,0 +1,207 @@
+from decimal import Decimal
+import numpy
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import random
+import math
+import pandas as pd
+import time
+
+#setup constants
+C = 0.001
+
+# MEAN1 = [-2,0,1]
+# MEAN2 = [2,0,1]
+NUM_DATAPOINTS = 750
+EPOCH = 1000
+#ALPHA = [1,0.5,0.1]
+NUM_HIDDEN_LAYER = 5
+NUM_OUTPUT_LAYER = 1
+
+
+
+
+
+
+#read excel to a numpy array
+file = pd.read_excel('spam.xlsx')
+
+#shuffle the data to pick the training set
+dataset = file.sample(frac=1)
+
+#pick the training set
+npdata = numpy.array(dataset.iloc[:,:57].head(750))
+
+#pick the test set
+testdata = numpy.array(dataset.iloc[:,:57].tail(250))
+
+X = numpy.array(npdata)
+#take the last column as training set labels
+Xc = numpy.array(dataset.iloc[:,-1].head(750))
+
+#take the last column as test set labels
+Xctest = numpy.array(dataset.iloc[:,-1].tail(250))
+
+
+#adding ones as bias
+X = numpy.concatenate((numpy.ones((NUM_DATAPOINTS,1)),X),axis=1)
+
+
+
+
+# randomize the training data
+
+#check the bias
+#print(X[:,0])
+
+indexes = list(range(NUM_DATAPOINTS))
+random.shuffle(indexes)
+
+Xshuffled = X[indexes]
+Xcshuffled = Xc[indexes]
+
+#print(Xcshuffled)
+#initialize weight
+random.seed()
+
+#weights for the hidden layer neurons
+#initial trying the range from -1 to 1
+hidden_layer_weights = []
+for i in range(NUM_HIDDEN_LAYER):
+    randomArr = []
+    for j in range(58):
+        randomArr.append((2*random.random()-1))
+    w = numpy.transpose(numpy.array(randomArr))
+    hidden_layer_weights.append(w)
+
+
+#weights for the output layer neuron
+output_random = []
+for j in range(NUM_HIDDEN_LAYER+1):
+    output_random.append((2*random.random()-1))
+output_layer_weight = numpy.transpose(numpy.array(output_random))
+
+
+# w1 = numpy.transpose(numpy.array([2*random.random()-1, 2*random.random()-1, 2*random.random()-1,2*random.random()-1]))
+# w2 = numpy.transpose(numpy.array([2*random.random()-1, 2*random.random()-1, 2*random.random()-1,2*random.random()-1]))
+# w3 = numpy.transpose(numpy.array([2*random.random()-1, 2*random.random()-1, 2*random.random()-1,2*random.random()-1]))
+
+# w4 = numpy.transpose(numpy.array([2*random.random()-1, 2*random.random()-1, 2*random.random()-1,2*random.random()-1]))
+
+# print(hidden_layer_weights)
+# print(output_layer_weight)
+
+errorList = []
+
+outputError = numpy.empty((NUM_DATAPOINTS,1))
+epochError = numpy.empty((EPOCH,1))
+figure = 1
+
+alpha = 0.1
+#added bias to forward calculation
+
+start_time = time.time()
+for epoch in range(EPOCH):
+    
+
+    totalError = 0
+    for i in range(NUM_DATAPOINTS):
+        z = []
+        error = []
+        xhidden = []
+        #forward calculation for hidden layers:
+        xhidden.append(1)
+        for j in range(NUM_HIDDEN_LAYER):
+            try:
+                z.append(1/(1 + math.exp(-numpy.dot(Xshuffled[i,:],hidden_layer_weights[j]))))
+            except OverflowError:
+                z.append(1/(1+math.inf))
+            xhidden.append(z[j])
+
+        #forward calculation for the output layer:
+
+        zoutput = 1/(1 + math.exp(-numpy.dot(xhidden,output_layer_weight)))
+
+        # prediction
+        prediction = round(zoutput,0) #one option...
+        outputError[i] = abs(Xcshuffled[i] - prediction)
+        #comparison = Xc[i] != prediction
+        # np.asscalar(a) is deprecated since NumPy v1.16, use a.item() instead
+        totalError = totalError + outputError[i].item()
+
+        #backward propagation
+        #update the error
+        erroroutput = zoutput*(1-zoutput)*(Xcshuffled[i] - zoutput)#output node
+        #hidden layer errors 
+        for j in range(NUM_HIDDEN_LAYER):
+            error.append(z[j]*(1-z[j])*(erroroutput*output_layer_weight[j]))
+ 
+
+        #adjusting weights
+
+        output_layer_weight += [(alpha *erroroutput* zed) for zed in xhidden]
+        for i in range(NUM_HIDDEN_LAYER):
+            adjust = []
+            for k in range(58):
+                adjust.append(alpha*error[j]*Xshuffled[j,k])
+            hidden_layer_weights[j] += adjust
+
+
+    # for every epoch
+    #print("Iteration... ", epoch + 1, "Error = ", totalError, "            ", end = '\r', flush = True)
+    epochError[epoch] = totalError
+    print("Iteration... ", epoch + 1, "Error = ", totalError)
+
+
+end_time = time.time()
+time_cost = end_time - start_time
+plt.figure(figure)
+figure += 1
+plt.plot(epochError)
+    
+
+
+plt.show()
+
+    
+
+
+##########Test Section################################################
+start_test = time.time()
+Xtest = testdata
+Xtest = numpy.concatenate((numpy.ones((250,1)),Xtest), axis = 1)
+
+
+prediction = numpy.empty(250)
+for i in range(250):
+    ztest = []
+    xhidden = []
+    xhidden.append(1)
+    #forward calculation
+    for j in range(NUM_HIDDEN_LAYER):
+        try:
+            ztest.append(1/(1 + math.exp(-numpy.dot(Xshuffled[i,:],hidden_layer_weights[j]))))
+        except OverflowError:
+            ztest.append(1/(1+math.inf))
+        xhidden.append(ztest[j])
+
+    #forward calculation for the output layer:
+
+    zoutput = 1/(1 + math.exp(-numpy.dot(xhidden,output_layer_weight)))
+    prediction[i] = round(zoutput,0)
+
+end_test = time.time()
+test_time_cost = end_test - start_test
+totalError = numpy.sum(prediction != Xctest)
+
+print("Training the network costs:",time_cost," seconds.\n")
+print("The testing data set contains 250 datapoints, and it took the network: ",test_time_cost, " seconds to classify\n")
+print("The total Error for the test is: ", totalError)
+
+print("done")
+
+
+
+
+
+
